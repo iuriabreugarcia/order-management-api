@@ -109,4 +109,117 @@ class OrderApiTest extends TestCase
             'stock' => 5,
         ]);
     }
+	
+	
+	public function test_deleting_pending_order_restores_stock(): void
+	{
+		$customer = Customer::create([
+			'name' => 'Test Customer',
+			'email' => 'customer@example.com',
+		]);
+
+		$category = Category::create([
+			'name' => 'Beverages',
+		]);
+
+		$product = Product::create([
+			'category_id' => $category->id,
+			'name' => 'Orange Juice',
+			'price' => 8.50,
+			'stock' => 20,
+			'active' => true,
+		]);
+
+		$orderResponse = $this->postJson('/api/orders', [
+			'customer_id' => $customer->id,
+			'items' => [
+				[
+					'product_id' => $product->id,
+					'quantity' => 3,
+				],
+			],
+		]);
+
+		$orderResponse->assertCreated();
+
+		$orderId = $orderResponse->json('id');
+
+		$this->assertDatabaseHas('products', [
+			'id' => $product->id,
+			'stock' => 17,
+		]);
+
+		$response = $this->deleteJson("/api/orders/{$orderId}");
+
+		$response->assertNoContent();
+
+		$this->assertDatabaseMissing('orders', [
+			'id' => $orderId,
+		]);
+
+		$this->assertDatabaseHas('products', [
+			'id' => $product->id,
+			'stock' => 20,
+		]);
+	}
+	
+	
+	public function test_non_pending_order_cannot_be_deleted(): void
+	{
+		$customer = Customer::create([
+			'name' => 'Test Customer',
+			'email' => 'customer@example.com',
+		]);
+
+		$category = Category::create([
+			'name' => 'Beverages',
+		]);
+
+		$product = Product::create([
+			'category_id' => $category->id,
+			'name' => 'Orange Juice',
+			'price' => 8.50,
+			'stock' => 20,
+			'active' => true,
+		]);
+
+		$orderResponse = $this->postJson('/api/orders', [
+			'customer_id' => $customer->id,
+			'items' => [
+				[
+					'product_id' => $product->id,
+					'quantity' => 3,
+				],
+			],
+		]);
+
+		$orderResponse->assertCreated();
+
+		$orderId = $orderResponse->json('id');
+
+		$this->patchJson("/api/orders/{$orderId}", [
+			'status' => 'completed',
+		])->assertOk();
+
+		$response = $this->deleteJson("/api/orders/{$orderId}");
+
+		$response
+			->assertStatus(409)
+			->assertJson([
+				'message' => 'Only pending orders can be deleted.',
+			]);
+
+		$this->assertDatabaseHas('orders', [
+			'id' => $orderId,
+			'status' => 'completed',
+		]);
+
+		$this->assertDatabaseHas('products', [
+			'id' => $product->id,
+			'stock' => 17,
+		]);
+	}
+	
 }
+
+
