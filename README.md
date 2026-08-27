@@ -1,58 +1,156 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Order Management API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+REST API for order, product and inventory management built with Laravel.
 
-## About Laravel
+## About the project
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+This project demonstrates the backend architecture of a small business management system.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+The application manages:
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+* Customers
+* Products
+* Categories
+* Inventory
+* Orders
+* Order items
+* Order status
 
-## Learning Laravel
+The project was inspired by real-world business requirements involving order processing, sales and inventory management.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Tech Stack
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+* PHP
+* Laravel
+* MySQL / PostgreSQL
+* REST API
+* Laravel Eloquent ORM
+* Git
+* Docker
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+## Architecture
 
-## Agentic Development
+The application follows a layered and maintainable structure using Laravel conventions and principles such as:
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+* MVC
+* Object-Oriented Programming
+* RESTful design
+* Data validation
+* Separation of responsibilities
+
+## Main Features
+
+### Customers
+
+Create, update, list and manage customers.
+
+### Products
+
+Manage products, categories, prices and available inventory.
+
+### Orders
+
+Create orders containing multiple products and quantities.
+
+The application calculates order totals and manages the relationship between orders and products.
+
+### Inventory
+
+Inventory quantities are updated according to business operations.
+
+### REST API
+
+The project exposes REST endpoints for integration with web, mobile or external applications.
+
+## Example Endpoints
+
+`GET /api/products`
+
+`POST /api/products`
+
+`GET /api/customers`
+
+`POST /api/customers`
+
+`GET /api/orders`
+
+`POST /api/orders`
+
+`GET /api/orders/{id}`
+
+`PATCH /api/orders/{id}/status`
+
+## Database
+
+Main entities:
+
+* users
+* customers
+* categories
+* products
+* orders
+* order_items
+
+Relationship example:
+
+Customer → Orders → Order Items → Products
+
+## Installation
+
+Clone the repository:
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+git clone https://github.com/iuriabreugarcia/order-management-api.git
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Enter the project directory:
 
-## Contributing
+```bash
+cd order-management-api
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Install dependencies:
 
-## Code of Conduct
+```bash
+composer install
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Create the environment file:
 
-## Security Vulnerabilities
+```bash
+cp .env.example .env
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Generate the application key:
 
-## License
+```bash
+php artisan key:generate
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Configure the database in `.env` and run:
+
+```bash
+php artisan migrate --seed
+```
+
+Start the application:
+
+```bash
+php artisan serve
+```
+
+## Purpose
+
+This repository is part of my professional software development portfolio.
+
+It demonstrates practical knowledge in backend development, relational databases, REST APIs and business-oriented software architecture.
+
+## Author
+
+**Iuri Abreu e Garcia**
+
+Systems Analyst & Full Stack Developer
+
+Portfolio: bacuridigital.com
+
+LinkedIn: linkedin.com/in/iuri-garcia-246858237
