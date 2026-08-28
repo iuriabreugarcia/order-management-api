@@ -6,7 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use App\Http\Requests\StoreOrderRequest;
+use App\Http\Requests\UpdateOrderRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -22,14 +23,9 @@ class OrderController extends Controller
         return response()->json($orders);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreOrderRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'customer_id' => ['required', 'integer', 'exists:customers,id'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
-        ]);
+        $validated = $request->validated();
 
         $order = DB::transaction(function () use ($validated) {
 
@@ -99,15 +95,9 @@ class OrderController extends Controller
         );
     }
 
-    public function update(Request $request, Order $order): JsonResponse
+    public function update(UpdateOrderRequest $request, Order $order): JsonResponse
     {
-        $validated = $request->validate([
-            'status' => [
-                'required',
-                'string',
-                'in:pending,processing,completed,cancelled',
-            ],
-        ]);
+        $validated = $request->validated();
 
         $order->update($validated);
 
