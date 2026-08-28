@@ -7,6 +7,7 @@ use App\Models\Customer;
 use Illuminate\Http\JsonResponse;
 use App\Http\Requests\StoreCustomerRequest;
 use App\Http\Requests\UpdateCustomerRequest;
+use App\Http\Resources\CustomerResource;
 
 class CustomerController extends Controller
 {
@@ -16,7 +17,7 @@ class CustomerController extends Controller
             ->latest()
             ->paginate(10);
 
-        return response()->json($customers);
+        return CustomerResource::collection($customers)->response();
     }
 
     public function store(StoreCustomerRequest $request): JsonResponse
@@ -25,12 +26,14 @@ class CustomerController extends Controller
 
         $customer = Customer::create($validated);
 
-        return response()->json($customer, 201);
-    }
+        return (new CustomerResource($customer))
+             ->response()
+             ->setStatusCode(201);
+        }
 
     public function show(Customer $customer): JsonResponse
     {
-        return response()->json($customer);
+        return (new CustomerResource($customer))->response();
     }
 
     public function update(UpdateCustomerRequest $request, Customer $customer): JsonResponse
@@ -39,7 +42,7 @@ class CustomerController extends Controller
 
         $customer->update($validated);
 
-        return response()->json($customer);
+        return (new CustomerResource($customer))->response();
     }
 
     public function destroy(Customer $customer): JsonResponse
