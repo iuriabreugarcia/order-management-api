@@ -1,5 +1,7 @@
 # Order Management API
 
+[![Tests](https://github.com/iuriabreugarcia/order-management-api/actions/workflows/tests.yml/badge.svg)](https://github.com/iuriabreugarcia/order-management-api/actions/workflows/tests.yml)
+
 RESTful API for order management and inventory control, built with Laravel and PHP.
 
 This project demonstrates the implementation of a transactional order workflow, including customers, product categories, inventory management, order processing, stock validation, and automated tests.
