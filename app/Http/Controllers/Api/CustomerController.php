@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use App\Http\Requests\StoreCustomerRequest;
+use App\Http\Requests\UpdateCustomerRequest;
 
 class CustomerController extends Controller
 {
@@ -19,13 +19,9 @@ class CustomerController extends Controller
         return response()->json($customers);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreCustomerRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255', 'unique:customers,email'],
-            'phone' => ['nullable', 'string', 'max:30'],
-        ]);
+        $validated = $request->validated();
 
         $customer = Customer::create($validated);
 
@@ -37,19 +33,9 @@ class CustomerController extends Controller
         return response()->json($customer);
     }
 
-    public function update(Request $request, Customer $customer): JsonResponse
+    public function update(UpdateCustomerRequest $request, Customer $customer): JsonResponse
     {
-        $validated = $request->validate([
-            'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'email' => [
-                'sometimes',
-                'nullable',
-                'email',
-                'max:255',
-                Rule::unique('customers', 'email')->ignore($customer->id),
-            ],
-            'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
-        ]);
+        $validated = $request->validated();
 
         $customer->update($validated);
 
