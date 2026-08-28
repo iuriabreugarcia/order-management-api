@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use App\Http\Requests\StoreCategoryRequest;
+use App\Http\Requests\UpdateCategoryRequest;
 
 class CategoryController extends Controller
 {
@@ -17,11 +17,9 @@ class CategoryController extends Controller
         );
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreCategoryRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255', 'unique:categories,name'],
-        ]);
+        $validated = $request->validated();
 
         $category = Category::create($validated);
 
@@ -35,17 +33,9 @@ class CategoryController extends Controller
         );
     }
 
-    public function update(Request $request, Category $category): JsonResponse
+    public function update(UpdateCategoryRequest $request, Category $category): JsonResponse
     {
-        $validated = $request->validate([
-            'name' => [
-                'sometimes',
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('categories', 'name')->ignore($category->id),
-            ],
-        ]);
+        $validated = $request->validated();
 
         $category->update($validated);
 
