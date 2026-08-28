@@ -4,10 +4,13 @@
 
 RESTful API for order management and inventory control, built with Laravel and PHP.
 
-This project demonstrates the implementation of a transactional order workflow, including customers, product categories, inventory management, order processing, stock validation, and automated tests.
+This project demonstrates the implementation of a transactional order workflow with token-based authentication, including customers, product categories, inventory management, order processing, stock validation, database consistency, and automated tests.
 
 ## Features
 
+- Token-based API authentication with Laravel Sanctum
+- Protected business endpoints
+- Login and logout with personal access tokens
 - Customer management
 - Product category management
 - Product and inventory management
@@ -24,6 +27,7 @@ This project demonstrates the implementation of a transactional order workflow, 
 - Eloquent relationships
 - Demo database seeding
 - Automated feature tests
+- Continuous Integration with GitHub Actions
 
 ## Tech Stack
 
@@ -34,6 +38,7 @@ This project demonstrates the implementation of a transactional order workflow, 
 - SQLite
 - PHPUnit
 - Composer
+- GitHub Actions
 - REST API
 
 ## Domain Model
@@ -49,7 +54,7 @@ Customer
                                    Category
 ```
 
-### Main entities
+### Main Entities
 
 **Customer**
 - name
@@ -81,7 +86,7 @@ Customer
 
 ## Business Rules
 
-### Transactional order processing
+### Transactional Order Processing
 
 Order creation is executed inside a database transaction.
 
@@ -99,7 +104,7 @@ When an order is created, the API:
 
 If any item cannot be processed, the transaction is rolled back.
 
-### Inventory protection
+### Inventory Protection
 
 An order cannot be created when the requested quantity exceeds available stock.
 
@@ -119,13 +124,13 @@ Example:
 
 The API returns a validation error and inventory remains unchanged.
 
-### Price history
+### Price History
 
 The current product price is copied to `order_items.unit_price` when an order is created.
 
 This preserves the original transaction value even if the product price changes later.
 
-### Order deletion
+### Order Deletion
 
 Only orders with `pending` status can be deleted.
 
@@ -133,7 +138,87 @@ When a pending order is deleted, its quantities are returned to inventory inside
 
 Orders that have already moved to another lifecycle status cannot be deleted through this operation.
 
+## Authentication
+
+The API uses Laravel Sanctum for token-based authentication.
+
+Business endpoints for customers, categories, products, and orders require an authenticated user.
+
+### Login
+
+```http
+POST /api/login
+```
+
+Example request:
+
+```json
+{
+  "email": "user@example.com",
+  "password": "password"
+}
+```
+
+A successful login returns the authenticated user and a personal access token:
+
+```json
+{
+  "user": {
+    "id": 1,
+    "name": "Example User",
+    "email": "user@example.com"
+  },
+  "token": "your-personal-access-token"
+}
+```
+
+### Authenticated Requests
+
+Send the returned token using the `Authorization` header:
+
+```http
+Authorization: Bearer your-personal-access-token
+Accept: application/json
+```
+
+Example:
+
+```bash
+curl \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  http://127.0.0.1:8000/api/orders
+```
+
+Requests to protected endpoints without valid authentication return an unauthorized response.
+
+### Current User
+
+```http
+GET /api/user
+```
+
+Returns the currently authenticated user.
+
+### Logout
+
+```http
+POST /api/logout
+```
+
+The current personal access token is revoked during logout.
+
 ## API Endpoints
+
+Except for `/api/login`, the endpoints below require Sanctum authentication.
+
+### Authentication
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/login` | Authenticate and create an API token |
+| GET | `/api/user` | Return the authenticated user |
+| POST | `/api/logout` | Revoke the current API token |
 
 ### Customers
 
@@ -172,10 +257,12 @@ Orders that have already moved to another lifecycle status cannot be deleted thr
 | GET | `/api/orders` | List orders |
 | POST | `/api/orders` | Create order |
 | GET | `/api/orders/{id}` | Show order |
-| PATCH | `/api/orders/{id}` | Update order status |
+| PUT/PATCH | `/api/orders/{id}` | Update order status |
 | DELETE | `/api/orders/{id}` | Delete pending order |
 
 ## Creating an Order
+
+Authentication is required.
 
 Example request:
 
@@ -270,7 +357,7 @@ creates:
 - 3 categories
 - 5 products
 
-This allows the API to be explored immediately after installation.
+This provides sample business data for local development and API exploration.
 
 ## Automated Tests
 
@@ -280,8 +367,13 @@ Run:
 php artisan test
 ```
 
-The feature test suite validates critical order behavior, including:
+The automated test suite validates critical authentication and order-management behavior, including:
 
+- login with valid credentials
+- rejection of invalid credentials
+- protection of authenticated endpoints
+- authenticated access using Sanctum tokens
+- token revocation during logout
 - successful order creation
 - automatic inventory reduction
 - insufficient stock rejection
@@ -292,9 +384,24 @@ The feature test suite validates critical order behavior, including:
 Current test suite:
 
 ```text
-6 tests
-28 assertions
+11 tests
+44 assertions
 ```
+
+## Continuous Integration
+
+The project uses GitHub Actions to automatically run the test suite on pushes and pull requests to the `main` branch.
+
+The CI workflow:
+
+1. Checks out the repository.
+2. Configures PHP 8.4.
+3. Installs Composer dependencies.
+4. Creates the application environment.
+5. Generates the Laravel application key.
+6. Runs the complete automated test suite.
+
+The status badge at the top of this README reflects the current CI result.
 
 ## Project Structure
 
@@ -303,6 +410,11 @@ app/
 ├── Http/
 │   └── Controllers/
 │       └── Api/
+│           ├── AuthController.php
+│           ├── CategoryController.php
+│           ├── CustomerController.php
+│           ├── OrderController.php
+│           └── ProductController.php
 ├── Models/
 database/
 ├── factories/
@@ -311,7 +423,13 @@ database/
 routes/
 └── api.php
 tests/
-└── Feature/
+├── Feature/
+│   ├── AuthApiTest.php
+│   └── OrderApiTest.php
+└── Unit/
+.github/
+└── workflows/
+    └── tests.yml
 ```
 
 ## Engineering Decisions
@@ -320,6 +438,9 @@ This project intentionally goes beyond a basic CRUD implementation.
 
 Some of the technical decisions include:
 
+- Laravel Sanctum personal access tokens for API authentication
+- middleware protection for business endpoints
+- token revocation during logout
 - database transactions to preserve consistency
 - `lockForUpdate()` during inventory processing
 - historical price storage in order items
@@ -327,18 +448,18 @@ Some of the technical decisions include:
 - model relationships through Eloquent
 - controlled order lifecycle
 - inventory restoration rules
-- automated tests for critical business behavior
+- automated tests for authentication and critical business behavior
+- continuous integration with GitHub Actions
 
-These decisions are intended to demonstrate backend development focused not only on endpoints, but also on data integrity and business rules.
+These decisions are intended to demonstrate backend development focused not only on endpoints, but also on authentication, data integrity, concurrency, business rules, and automated quality assurance.
 
 ## Roadmap
 
-- API authentication and authorization
+- Authorization policies and roles
 - Form Request classes
 - API Resources
-- expanded automated test coverage
-- CI pipeline with GitHub Actions
-- API documentation
+- Expanded automated test coverage
+- OpenAPI / Swagger documentation
 - Docker environment
 
 ## Author
