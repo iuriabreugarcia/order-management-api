@@ -5,7 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use App\Http\Requests\StoreProductRequest;
+use App\Http\Requests\UpdateProductRequest;
 
 class ProductController extends Controller
 {
@@ -19,16 +20,9 @@ class ProductController extends Controller
         return response()->json($products);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreProductRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'category_id' => ['required', 'integer', 'exists:categories,id'],
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'price' => ['required', 'numeric', 'min:0'],
-            'stock' => ['required', 'integer', 'min:0'],
-            'active' => ['sometimes', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         $product = Product::create($validated);
 
@@ -45,16 +39,9 @@ class ProductController extends Controller
         );
     }
 
-    public function update(Request $request, Product $product): JsonResponse
+    public function update(UpdateProductRequest $request, Product $product): JsonResponse
     {
-        $validated = $request->validate([
-            'category_id' => ['sometimes', 'required', 'integer', 'exists:categories,id'],
-            'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'description' => ['sometimes', 'nullable', 'string'],
-            'price' => ['sometimes', 'required', 'numeric', 'min:0'],
-            'stock' => ['sometimes', 'required', 'integer', 'min:0'],
-            'active' => ['sometimes', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         $product->update($validated);
 
