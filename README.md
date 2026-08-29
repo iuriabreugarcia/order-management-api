@@ -4,7 +4,7 @@
 
 RESTful API for order management and inventory control, built with Laravel and PHP.
 
-This project demonstrates the implementation of a transactional order workflow with token-based authentication, including customers, product categories, inventory management, order processing, stock validation, database consistency, and automated tests.
+This project demonstrates the implementation of a transactional backend with token-based authentication, structured validation, standardized API responses, inventory control, order processing, database consistency, and automated feature tests.
 
 ## Features
 
@@ -18,12 +18,14 @@ This project demonstrates the implementation of a transactional order workflow w
 - Automatic order total calculation
 - Automatic stock reduction
 - Insufficient stock validation
+- Inactive product validation
 - Database transactions for order processing
 - Row locking during inventory updates
 - Stock restoration when pending orders are deleted
 - Order lifecycle control
 - Pagination
-- Request validation
+- Form Request validation
+- API Resources for response transformation
 - Eloquent relationships
 - Demo database seeding
 - Automated feature tests
@@ -124,6 +126,8 @@ Example:
 
 The API returns a validation error and inventory remains unchanged.
 
+Inactive products also cannot be included in new orders.
+
 ### Price History
 
 The current product price is copied to `order_items.unit_price` when an order is created.
@@ -155,9 +159,11 @@ Example request:
 ```json
 {
   "email": "user@example.com",
-  "password": "password"
+  "password": "your-password"
 }
 ```
+
+> The credentials above are illustrative. Create a local user before testing the login endpoint.
 
 A successful login returns the authenticated user and a personal access token:
 
@@ -278,23 +284,52 @@ Example request:
 }
 ```
 
-Example result:
+Example response:
 
 ```json
 {
+  "id": 1,
   "customer_id": 1,
   "status": "pending",
   "total": "25.50",
+  "customer": {
+    "id": 1,
+    "name": "Example Customer",
+    "email": "customer@example.com",
+    "phone": null
+  },
   "items": [
     {
+      "id": 1,
       "product_id": 1,
       "quantity": 3,
       "unit_price": "8.50",
-      "subtotal": "25.50"
+      "subtotal": "25.50",
+      "product": {
+        "id": 1,
+        "name": "Orange Juice",
+        "price": "8.50",
+        "stock": 17,
+        "active": true
+      }
     }
   ]
 }
 ```
+
+## Validation and API Resources
+
+Request validation is organized through dedicated Laravel Form Request classes.
+
+The API uses resources to provide consistent response transformation for:
+
+- customers
+- categories
+- products
+- orders
+- order items
+
+This keeps validation and presentation concerns outside the controllers and makes the HTTP layer easier to maintain and test.
 
 ## Installation
 
@@ -359,6 +394,8 @@ creates:
 
 This provides sample business data for local development and API exploration.
 
+The demo data seeder does not currently create an authentication user.
+
 ## Automated Tests
 
 Run:
@@ -367,15 +404,29 @@ Run:
 php artisan test
 ```
 
-The automated test suite validates critical authentication and order-management behavior, including:
+The automated test suite covers authentication, CRUD operations, validation, API response structures, inventory behavior, and transactional order processing.
+
+Coverage includes:
 
 - login with valid credentials
 - rejection of invalid credentials
 - protection of authenticated endpoints
-- authenticated access using Sanctum tokens
+- authenticated access using Sanctum
 - token revocation during logout
+- customer creation, listing, retrieval, update, and deletion
+- customer email uniqueness validation
+- category creation, listing, retrieval, update, and deletion
+- prevention of category deletion when products exist
+- category name uniqueness validation
+- product creation, listing, retrieval, update, and deletion
+- product category validation
+- product price and stock validation
 - successful order creation
+- order listing and retrieval
+- order status updates
+- API Resource response structures
 - automatic inventory reduction
+- inactive product rejection
 - insufficient stock rejection
 - transaction rollback behavior
 - stock restoration when a pending order is deleted
@@ -384,8 +435,8 @@ The automated test suite validates critical authentication and order-management 
 Current test suite:
 
 ```text
-11 tests
-44 assertions
+36 tests
+255 assertions
 ```
 
 ## Continuous Integration
@@ -407,29 +458,34 @@ The status badge at the top of this README reflects the current CI result.
 
 ```text
 app/
-├── Http/
-│   └── Controllers/
-│       └── Api/
-│           ├── AuthController.php
-│           ├── CategoryController.php
-│           ├── CustomerController.php
-│           ├── OrderController.php
-│           └── ProductController.php
-├── Models/
+|-- Http/
+|   |-- Controllers/
+|   |   `-- Api/
+|   |       |-- AuthController.php
+|   |       |-- CategoryController.php
+|   |       |-- CustomerController.php
+|   |       |-- OrderController.php
+|   |       `-- ProductController.php
+|   |-- Requests/
+|   `-- Resources/
+|-- Models/
 database/
-├── factories/
-├── migrations/
-└── seeders/
+|-- factories/
+|-- migrations/
+`-- seeders/
 routes/
-└── api.php
+`-- api.php
 tests/
-├── Feature/
-│   ├── AuthApiTest.php
-│   └── OrderApiTest.php
-└── Unit/
+|-- Feature/
+|   |-- AuthApiTest.php
+|   |-- CategoryApiTest.php
+|   |-- CustomerApiTest.php
+|   |-- OrderApiTest.php
+|   `-- ProductApiTest.php
+`-- Unit/
 .github/
-└── workflows/
-    └── tests.yml
+`-- workflows/
+    `-- tests.yml
 ```
 
 ## Engineering Decisions
@@ -441,6 +497,8 @@ Some of the technical decisions include:
 - Laravel Sanctum personal access tokens for API authentication
 - middleware protection for business endpoints
 - token revocation during logout
+- dedicated Form Request classes for validation
+- API Resources for response transformation
 - database transactions to preserve consistency
 - `lockForUpdate()` during inventory processing
 - historical price storage in order items
@@ -448,22 +506,27 @@ Some of the technical decisions include:
 - model relationships through Eloquent
 - controlled order lifecycle
 - inventory restoration rules
-- automated tests for authentication and critical business behavior
+- automated feature tests for CRUD operations and business rules
+- response structure validation
 - continuous integration with GitHub Actions
 
-These decisions are intended to demonstrate backend development focused not only on endpoints, but also on authentication, data integrity, concurrency, business rules, and automated quality assurance.
+These decisions are intended to demonstrate backend development focused not only on endpoints, but also on authentication, separation of concerns, data integrity, concurrency, business rules, and automated quality assurance.
 
 ## Roadmap
 
-- Authorization policies and roles
-- Form Request classes
-- API Resources
-- Expanded automated test coverage
-- OpenAPI / Swagger documentation
-- Docker environment
+- [x] Token-based API authentication
+- [x] Form Request validation
+- [x] API Resources
+- [x] CRUD feature test coverage
+- [x] Order and inventory business-rule tests
+- [x] Continuous Integration with GitHub Actions
+- [ ] Authorization policies and roles
+- [ ] OpenAPI / Swagger documentation
+- [ ] Docker environment
+- [ ] Additional edge-case and authorization tests
 
 ## Author
 
 **Iuri Abreu e Garcia**
 
-Backend Development • Systems Analysis • Data Analysis
+Backend Development | Systems Analysis | Data Analysis
