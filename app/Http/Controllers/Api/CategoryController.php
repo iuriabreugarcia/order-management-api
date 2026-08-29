@@ -7,14 +7,18 @@ use App\Models\Category;
 use Illuminate\Http\JsonResponse;
 use App\Http\Requests\StoreCategoryRequest;
 use App\Http\Requests\UpdateCategoryRequest;
+use App\Http\Resources\CategoryResource;
 
 class CategoryController extends Controller
 {
     public function index(): JsonResponse
     {
-        return response()->json(
-            Category::query()->orderBy('name')->paginate(10)
-        );
+	$categories = Category::query()
+            ->orderBy('name')
+            ->paginate(10);
+
+	return CategoryResource::collection($categories)->response();
+
     }
 
     public function store(StoreCategoryRequest $request): JsonResponse
@@ -23,14 +27,16 @@ class CategoryController extends Controller
 
         $category = Category::create($validated);
 
-        return response()->json($category, 201);
-    }
+        return (new CategoryResource($category))
+    		->response()
+    		->setStatusCode(201);
+    	}
 
     public function show(Category $category): JsonResponse
     {
-        return response()->json(
-            $category->load('products')
-        );
+        return (new CategoryResource(
+    		$category->load('products')
+	))->response();
     }
 
     public function update(UpdateCategoryRequest $request, Category $category): JsonResponse
@@ -39,7 +45,7 @@ class CategoryController extends Controller
 
         $category->update($validated);
 
-        return response()->json($category);
+        return (new CategoryResource($category))->response();
     }
 
     public function destroy(Category $category): JsonResponse
