@@ -10,6 +10,7 @@ use App\Http\Requests\StoreOrderRequest;
 use App\Http\Requests\UpdateOrderRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use App\Http\Resources\OrderResource;
 
 class OrderController extends Controller
 {
@@ -20,7 +21,7 @@ class OrderController extends Controller
             ->latest()
             ->paginate(10);
 
-        return response()->json($orders);
+        return OrderResource::collection($orders)->response();
     }
 
     public function store(StoreOrderRequest $request): JsonResponse
@@ -82,17 +83,19 @@ class OrderController extends Controller
             return $order;
         });
 
-        return response()->json(
-            $order->load(['customer', 'items.product']),
-            201
-        );
+        return (new OrderResource(
+    	    $order->load(['customer', 'items.product'])
+	))
+    	    ->response()
+    	    ->setStatusCode(201);
+
     }
 
     public function show(Order $order): JsonResponse
     {
-        return response()->json(
-            $order->load(['customer', 'items.product'])
-        );
+        return (new OrderResource(
+   	    $order->load(['customer', 'items.product'])
+	))->response();
     }
 
     public function update(UpdateOrderRequest $request, Order $order): JsonResponse
@@ -101,9 +104,9 @@ class OrderController extends Controller
 
         $order->update($validated);
 
-        return response()->json(
-            $order->fresh()->load(['customer', 'items.product'])
-        );
+        return (new OrderResource(
+    	    $order->fresh()->load(['customer', 'items.product'])
+	))->response();
     }
 
     public function destroy(Order $order): JsonResponse
