@@ -4,11 +4,13 @@
 
 RESTful API for order management and inventory control, built with Laravel and PHP.
 
-This project demonstrates the implementation of a transactional backend with token-based authentication, structured validation, standardized API responses, inventory control, order processing, database consistency, and automated feature tests.
+This project demonstrates the implementation of a transactional backend with token-based authentication, role-based authorization, structured validation, standardized API responses, inventory control, order processing, database consistency, and automated feature tests.
 
 ## Features
 
 - Token-based API authentication with Laravel Sanctum
+- Role-based authorization with Laravel Policies
+- `admin` and `operator` user roles
 - Protected business endpoints
 - Login and logout with personal access tokens
 - Customer management
@@ -28,7 +30,7 @@ This project demonstrates the implementation of a transactional backend with tok
 - API Resources for response transformation
 - Eloquent relationships
 - Demo database seeding
-- Automated feature tests
+- Automated feature and authorization tests
 - Continuous Integration with GitHub Actions
 
 ## Tech Stack
@@ -172,7 +174,8 @@ A successful login returns the authenticated user and a personal access token:
   "user": {
     "id": 1,
     "name": "Example User",
-    "email": "user@example.com"
+    "email": "user@example.com",
+    "role": "operator"
   },
   "token": "your-personal-access-token"
 }
@@ -214,9 +217,34 @@ POST /api/logout
 
 The current personal access token is revoked during logout.
 
+
+## Authorization and Roles
+
+Authorization is implemented with Laravel Policies. The application currently supports two roles:
+
+- `admin` — full access to master data and order operations.
+- `operator` — read access to business resources and operational access to create and update orders.
+
+### Permission Matrix
+
+| Resource / Action | Admin | Operator |
+|---|:---:|:---:|
+| List and view customers | Yes | Yes |
+| Create, update, or delete customers | Yes | No |
+| List and view categories | Yes | Yes |
+| Create, update, or delete categories | Yes | No |
+| List and view products | Yes | Yes |
+| Create, update, or delete products | Yes | No |
+| List and view orders | Yes | Yes |
+| Create orders | Yes | Yes |
+| Update order status | Yes | Yes |
+| Delete pending orders | Yes | No |
+
+Unauthorized operations return an HTTP `403 Forbidden` response.
+
 ## API Endpoints
 
-Except for `/api/login`, the endpoints below require Sanctum authentication.
+Except for `/api/login`, the endpoints below require Sanctum authentication. Individual operations are also subject to the role-based authorization rules above.
 
 ### Authentication
 
@@ -268,7 +296,7 @@ Except for `/api/login`, the endpoints below require Sanctum authentication.
 
 ## Creating an Order
 
-Authentication is required.
+Authentication is required. Both `admin` and `operator` users can create orders.
 
 Example request:
 
@@ -404,7 +432,7 @@ Run:
 php artisan test
 ```
 
-The automated test suite covers authentication, CRUD operations, validation, API response structures, inventory behavior, and transactional order processing.
+The automated test suite covers authentication, authorization, CRUD operations, validation, API response structures, inventory behavior, and transactional order processing.
 
 Coverage includes:
 
@@ -413,6 +441,9 @@ Coverage includes:
 - protection of authenticated endpoints
 - authenticated access using Sanctum
 - token revocation during logout
+- role-based access control for `admin` and `operator`
+- operator restrictions on master-data management and order deletion
+- administrator access to protected management operations
 - customer creation, listing, retrieval, update, and deletion
 - customer email uniqueness validation
 - category creation, listing, retrieval, update, and deletion
@@ -435,8 +466,8 @@ Coverage includes:
 Current test suite:
 
 ```text
-36 tests
-255 assertions
+40 tests
+282 assertions
 ```
 
 ## Continuous Integration
@@ -469,6 +500,11 @@ app/
 |   |-- Requests/
 |   `-- Resources/
 |-- Models/
+|-- Policies/
+|   |-- CategoryPolicy.php
+|   |-- CustomerPolicy.php
+|   |-- OrderPolicy.php
+|   `-- ProductPolicy.php
 database/
 |-- factories/
 |-- migrations/
@@ -478,6 +514,7 @@ routes/
 tests/
 |-- Feature/
 |   |-- AuthApiTest.php
+|   |-- AuthorizationApiTest.php
 |   |-- CategoryApiTest.php
 |   |-- CustomerApiTest.php
 |   |-- OrderApiTest.php
@@ -497,6 +534,9 @@ Some of the technical decisions include:
 - Laravel Sanctum personal access tokens for API authentication
 - middleware protection for business endpoints
 - token revocation during logout
+- role-based access control for `admin` and `operator`
+- operator restrictions on master-data management and order deletion
+- administrator access to protected management operations
 - dedicated Form Request classes for validation
 - API Resources for response transformation
 - database transactions to preserve consistency
@@ -510,7 +550,7 @@ Some of the technical decisions include:
 - response structure validation
 - continuous integration with GitHub Actions
 
-These decisions are intended to demonstrate backend development focused not only on endpoints, but also on authentication, separation of concerns, data integrity, concurrency, business rules, and automated quality assurance.
+These decisions are intended to demonstrate backend development focused not only on endpoints, but also on authentication, authorization, separation of concerns, data integrity, concurrency, business rules, and automated quality assurance.
 
 ## Roadmap
 
@@ -520,7 +560,7 @@ These decisions are intended to demonstrate backend development focused not only
 - [x] CRUD feature test coverage
 - [x] Order and inventory business-rule tests
 - [x] Continuous Integration with GitHub Actions
-- [ ] Authorization policies and roles
+- [x] Authorization policies and roles
 - [ ] OpenAPI / Swagger documentation
 - [ ] Docker environment
 - [ ] Additional edge-case and authorization tests
