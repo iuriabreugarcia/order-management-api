@@ -3,19 +3,21 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreOrderRequest;
+use App\Http\Requests\UpdateOrderRequest;
+use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
-use App\Http\Requests\StoreOrderRequest;
-use App\Http\Requests\UpdateOrderRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use App\Http\Resources\OrderResource;
 
 class OrderController extends Controller
 {
     public function index(): JsonResponse
     {
+        $this->authorize('viewAny', Order::class);
+
         $orders = Order::query()
             ->with(['customer', 'items.product'])
             ->latest()
@@ -26,10 +28,11 @@ class OrderController extends Controller
 
     public function store(StoreOrderRequest $request): JsonResponse
     {
+        $this->authorize('create', Order::class);
+
         $validated = $request->validated();
 
         $order = DB::transaction(function () use ($validated) {
-
             $order = Order::create([
                 'customer_id' => $validated['customer_id'],
                 'status' => 'pending',
@@ -39,24 +42,19 @@ class OrderController extends Controller
             $total = 0;
 
             foreach ($validated['items'] as $itemData) {
-
                 $product = Product::query()
                     ->lockForUpdate()
                     ->findOrFail($itemData['product_id']);
 
                 if (!$product->active) {
                     throw ValidationException::withMessages([
-                        'items' => [
-                            "Product {$product->name} is inactive.",
-                        ],
+                        'items' => ["Product {$product->name} is inactive."],
                     ]);
                 }
 
                 if ($product->stock < $itemData['quantity']) {
                     throw ValidationException::withMessages([
-                        'items' => [
-                            "Insufficient stock for product {$product->name}. Available: {$product->stock}.",
-                        ],
+                        'items' => ["Insufficient stock for product {$product->name}. Available: {$product->stock}."],
                     ]);
                 }
 
@@ -72,45 +70,39 @@ class OrderController extends Controller
                 ]);
 
                 $product->decrement('stock', $quantity);
-
                 $total += $subtotal;
             }
 
-            $order->update([
-                'total' => $total,
-            ]);
+            $order->update(['total' => $total]);
 
             return $order;
         });
 
-        return (new OrderResource(
-    	    $order->load(['customer', 'items.product'])
-	))
-    	    ->response()
-    	    ->setStatusCode(201);
-
+        return (new OrderResource($order->load(['customer', 'items.product'])))
+            ->response()
+            ->setStatusCode(201);
     }
 
     public function show(Order $order): JsonResponse
     {
-        return (new OrderResource(
-   	    $order->load(['customer', 'items.product'])
-	))->response();
+        $this->authorize('view', $order);
+
+        return (new OrderResource($order->load(['customer', 'items.product'])))->response();
     }
 
     public function update(UpdateOrderRequest $request, Order $order): JsonResponse
     {
-        $validated = $request->validated();
+        $this->authorize('update', $order);
 
-        $order->update($validated);
+        $order->update($request->validated());
 
-        return (new OrderResource(
-    	    $order->fresh()->load(['customer', 'items.product'])
-	))->response();
+        return (new OrderResource($order->fresh()->load(['customer', 'items.product'])))->response();
     }
 
     public function destroy(Order $order): JsonResponse
     {
+        $this->authorize('delete', $order);
+
         if ($order->status !== 'pending') {
             return response()->json([
                 'message' => 'Only pending orders can be deleted.',
@@ -118,7 +110,6 @@ class OrderController extends Controller
         }
 
         DB::transaction(function () use ($order) {
-
             $order->load('items');
 
             foreach ($order->items as $item) {

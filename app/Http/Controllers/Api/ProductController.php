@@ -3,16 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Product;
-use Illuminate\Http\JsonResponse;
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
 use App\Http\Resources\ProductResource;
+use App\Models\Product;
+use Illuminate\Http\JsonResponse;
 
 class ProductController extends Controller
 {
     public function index(): JsonResponse
     {
+        $this->authorize('viewAny', Product::class);
+
         $products = Product::query()
             ->with('category')
             ->orderBy('name')
@@ -23,39 +25,35 @@ class ProductController extends Controller
 
     public function store(StoreProductRequest $request): JsonResponse
     {
-        $validated = $request->validated();
+        $this->authorize('create', Product::class);
 
-        $product = Product::create($validated);
+        $product = Product::create($request->validated());
 
-	return (new ProductResource(
-    	    $product->load('category')
-	))
-
-    	    ->response()
-    	    ->setStatusCode(201);
-        
+        return (new ProductResource($product->load('category')))
+            ->response()
+            ->setStatusCode(201);
     }
 
     public function show(Product $product): JsonResponse
     {
-        return (new ProductResource(
-    	    $product->load('category')
-	))->response();
+        $this->authorize('view', $product);
+
+        return (new ProductResource($product->load('category')))->response();
     }
 
     public function update(UpdateProductRequest $request, Product $product): JsonResponse
     {
-        $validated = $request->validated();
+        $this->authorize('update', $product);
 
-        $product->update($validated);
+        $product->update($request->validated());
 
-        return (new ProductResource(
-    	    $product->fresh()->load('category')
-	))->response();
+        return (new ProductResource($product->fresh()->load('category')))->response();
     }
 
     public function destroy(Product $product): JsonResponse
     {
+        $this->authorize('delete', $product);
+
         if ($product->orderItems()->exists()) {
             return response()->json([
                 'message' => 'Product cannot be deleted because it is associated with orders.',
