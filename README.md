@@ -2,60 +2,106 @@
 
 [![Tests](https://github.com/iuriabreugarcia/order-management-api/actions/workflows/tests.yml/badge.svg)](https://github.com/iuriabreugarcia/order-management-api/actions/workflows/tests.yml)
 
-RESTful API for order management and inventory control, built with Laravel and PHP.
-This project demonstrates the implementation of a transactional backend with token-based authentication, role-based authorization, structured validation, standardized API responses, inventory control, order processing, database consistency, OpenAPI documentation, and automated feature tests.
+A portfolio-grade REST API for **order management and inventory control**, built with Laravel and PHP.
 
-## Features
+The project goes beyond basic CRUD by implementing transactional order processing, inventory protection, role-based authorization, OpenAPI documentation, automated testing, continuous integration, and a reproducible Docker development environment.
 
-- Token-based API authentication with Laravel Sanctum
-- Role-based authorization with Laravel Policies
-- `admin` and `operator` user roles
-- Protected business endpoints
-- Login and logout with personal access tokens
-- Customer management
-- Product category management
-- Product and inventory management
-- Order creation with multiple items
-- Automatic order total calculation
-- Automatic stock reduction
-- Insufficient stock validation
-- Inactive product validation
-- Database transactions for order processing
-- Row locking during inventory updates
-- Stock restoration when pending orders are deleted
-- Order lifecycle control
-- Pagination
-- Form Request validation
-- API Resources for response transformation
-- Eloquent relationships
-- OpenAPI 3 documentation
-- Interactive Swagger UI
-- Bearer/Sanctum authentication documented in Swagger
-- OpenAPI contract test coverage
-- Demo database seeding
-- Automated feature and authorization tests
-- Continuous Integration with GitHub Actions
-- Docker-based development environment
+## Portfolio Highlights
+
+- **Transactional order processing** with database rollback on failure
+- **Inventory concurrency protection** using `lockForUpdate()`
+- **Role-based access control** with `admin` and `operator` policies
+- **Historical price snapshots** stored in order items
+- **45 automated tests / 374 assertions**
+- **OpenAPI 3 contract** with interactive Swagger UI
+- **Automated OpenAPI contract validation**
+- **GitHub Actions CI** on pushes and pull requests
+- **Docker Compose environment** with persistent SQLite storage
+- Clear separation through **Form Requests, API Resources, Policies, and Eloquent relationships**
 
 ## Tech Stack
 
-- PHP 8.4
-- Laravel 13
-- Laravel Sanctum
-- L5-Swagger 11
-- swagger-php 6
-- Swagger UI 5
-- OpenAPI 3.0
-- Eloquent ORM
-- SQLite
-- PHPUnit
-- Composer
-- Docker
-- Docker Compose
-- GitHub Actions
-- REST API
+| Area | Technology |
+|---|---|
+| Language | PHP 8.4 |
+| Framework | Laravel 13 |
+| Authentication | Laravel Sanctum |
+| Authorization | Laravel Policies |
+| Database | SQLite |
+| ORM | Eloquent |
+| API Documentation | OpenAPI 3, L5-Swagger, swagger-php, Swagger UI |
+| Testing | PHPUnit / Laravel Feature Tests |
+| Dependency Management | Composer |
+| Containers | Docker, Docker Compose |
+| CI | GitHub Actions |
 
-## Domain Model
+## Quick Start with Docker
+
+The fastest way to run the project is with Docker.
+
+```bash
+docker compose up -d --build
+```
+
+Check the container:
+
+```bash
+docker compose ps
+```
+
+When the application reports `healthy`:
+
+- API: `http://127.0.0.1:8000`
+- Swagger UI: `http://127.0.0.1:8000/api/documentation`
+
+Run the complete test suite inside the container:
+
+```bash
+docker compose exec app php artisan test
+```
+
+Stop the environment:
+
+```bash
+docker compose down
+```
+
+The named Docker volume preserves the SQLite database and the development application key.
+
+To intentionally remove persisted Docker data:
+
+```bash
+docker compose down -v
+```
+
+## Architecture Overview
+
+```text
+Client
+  |
+  v
+Laravel API
+  |
+  +-- Sanctum Authentication
+  |
+  +-- Policies / Role Authorization
+  |
+  +-- Form Request Validation
+  |
+  +-- Controllers
+  |     |
+  |     +-- Database Transactions
+  |     +-- Inventory Row Locks
+  |
+  +-- Eloquent Models
+  |
+  +-- API Resources
+  |
+  v
+SQLite Database
+```
+
+### Domain Model
 
 ```text
 Customer
@@ -68,97 +114,68 @@ Customer
                                    Category
 ```
 
-### Main Entities
+Main entities:
 
-**Customer**
-- name
-- email
-- phone
+- **Customer** — customer information and order ownership
+- **Category** — product classification
+- **Product** — pricing, inventory, category, and active status
+- **Order** — customer, lifecycle status, and calculated total
+- **OrderItem** — product, quantity, historical unit price, and subtotal
 
-**Category**
-- name
-
-**Product**
-- category
-- name
-- description
-- price
-- stock
-- active status
-
-**Order**
-- customer
-- status
-- total
-
-**OrderItem**
-- order
-- product
-- quantity
-- unit price
-- subtotal
-
-## Business Rules
+## Engineering Highlights
 
 ### Transactional Order Processing
 
-Order creation is executed inside a database transaction.
+Order creation runs inside a database transaction.
 
-When an order is created, the API:
+For each requested item, the API:
 
-1. Validates the customer and requested items.
-2. Locks each product row for update.
-3. Checks whether the product is active.
-4. Checks available inventory.
-5. Preserves the product price in the order item.
-6. Calculates each item subtotal.
-7. Reduces product inventory.
-8. Calculates the final order total.
-9. Commits the operation only when the entire order is valid.
+1. validates the customer and item payload;
+2. locks the product row for update;
+3. verifies that the product is active;
+4. verifies available inventory;
+5. snapshots the current product price;
+6. calculates the item subtotal;
+7. reduces stock;
+8. accumulates the order total.
 
-If any item cannot be processed, the transaction is rolled back.
+The transaction is committed only when **every item** can be processed.
+
+If a later item fails, previously processed changes are rolled back. This protects both the order records and inventory from partial updates.
 
 ### Inventory Protection
 
-An order cannot be created when the requested quantity exceeds available stock.
+Inventory rules include:
 
-Example:
+- insufficient stock rejection;
+- inactive product rejection;
+- cumulative stock handling when the same product appears more than once;
+- rollback when any item in a multi-item order fails;
+- stock restoration when an eligible pending order is deleted.
 
-```json
-{
-  "customer_id": 1,
-  "items": [
-    {
-      "product_id": 1,
-      "quantity": 100
-    }
-  ]
-}
+`lockForUpdate()` is used while processing inventory to reduce the risk of conflicting stock updates.
+
+### Historical Price Preservation
+
+When an order is created, the current product price is copied to:
+
+```text
+order_items.unit_price
 ```
-
-The API returns a validation error and inventory remains unchanged.
-
-Inactive products also cannot be included in new orders.
-
-### Price History
-
-The current product price is copied to `order_items.unit_price` when an order is created.
 
 This preserves the original transaction value even if the product price changes later.
 
-### Order Deletion
+### Controlled Order Lifecycle
 
-Only orders with `pending` status can be deleted.
+Only `pending` orders can be deleted.
 
-When a pending order is deleted, its quantities are returned to inventory inside a database transaction.
+Deleting a pending order restores its item quantities to inventory inside a database transaction.
 
-Orders that have already moved to another lifecycle status cannot be deleted through this operation.
+Orders that already moved to another lifecycle state cannot be deleted through this operation.
 
 ## Authentication
 
-The API uses Laravel Sanctum for token-based authentication.
-
-Business endpoints for customers, categories, products, and orders require an authenticated user.
+Authentication uses Laravel Sanctum personal access tokens.
 
 ### Login
 
@@ -166,7 +183,7 @@ Business endpoints for customers, categories, products, and orders require an au
 POST /api/login
 ```
 
-Example request:
+Example:
 
 ```json
 {
@@ -175,41 +192,14 @@ Example request:
 }
 ```
 
-> The credentials above are illustrative. Create a local user before testing the login endpoint.
+A successful login returns the authenticated user and a personal access token.
 
-A successful login returns the authenticated user and a personal access token:
-
-```json
-{
-  "user": {
-    "id": 1,
-    "name": "Example User",
-    "email": "user@example.com",
-    "role": "operator"
-  },
-  "token": "your-personal-access-token"
-}
-```
-
-### Authenticated Requests
-
-Send the returned token using the `Authorization` header:
+Use the token in protected requests:
 
 ```http
-Authorization: Bearer your-personal-access-token
+Authorization: Bearer YOUR_TOKEN
 Accept: application/json
 ```
-
-Example:
-
-```bash
-curl \
-  -H "Accept: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  http://127.0.0.1:8000/api/orders
-```
-
-Requests to protected endpoints without valid authentication return an unauthorized response.
 
 ### Current User
 
@@ -217,159 +207,93 @@ Requests to protected endpoints without valid authentication return an unauthori
 GET /api/user
 ```
 
-Returns the currently authenticated user.
-
 ### Logout
 
 ```http
 POST /api/logout
 ```
 
-The current personal access token is revoked during logout.
+Logout revokes the **current access token**. Other valid tokens belonging to the same user remain available.
 
-## Authorization and Roles
+## Authorization
 
-Authorization is implemented with Laravel Policies. The application currently supports two roles:
+The application currently supports two roles:
 
-- `admin` — full access to master data and order operations.
-- `operator` — read access to business resources and operational access to create and update orders.
+- `admin` — manages master data and all supported order operations;
+- `operator` — reads business resources and performs operational order work.
 
 ### Permission Matrix
 
 | Resource / Action | Admin | Operator |
 |---|:---:|:---:|
-| List and view customers | Yes | Yes |
-| Create, update, or delete customers | Yes | No |
-| List and view categories | Yes | Yes |
-| Create, update, or delete categories | Yes | No |
-| List and view products | Yes | Yes |
-| Create, update, or delete products | Yes | No |
-| List and view orders | Yes | Yes |
+| List/view customers | Yes | Yes |
+| Create/update/delete customers | Yes | No |
+| List/view categories | Yes | Yes |
+| Create/update/delete categories | Yes | No |
+| List/view products | Yes | Yes |
+| Create/update/delete products | Yes | No |
+| List/view orders | Yes | Yes |
 | Create orders | Yes | Yes |
 | Update order status | Yes | Yes |
 | Delete pending orders | Yes | No |
 
-Unauthorized operations return an HTTP `403 Forbidden` response.
-
-## OpenAPI / Swagger Documentation
-
-The API is documented with OpenAPI 3 using L5-Swagger and swagger-php PHP attributes.
-
-The specification covers:
-
-- Sanctum Bearer authentication
-- authentication endpoints
-- customers
-- categories
-- products
-- orders
-- request schemas
-- response schemas
-- pagination
-- role-sensitive operations
-- HTTP `401`, `403`, `404`, `409`, and `422` responses
-- example request and response payloads
-- order and inventory business rules
-
-### Swagger UI
-
-Start the application:
-
-```bash
-php artisan serve
-```
-
-Then open:
-
-```text
-http://127.0.0.1:8000/api/documentation
-```
-
-Swagger UI provides an interactive view of the API contract and an **Authorize** action for Sanctum Bearer tokens.
-
-Authenticate through:
-
-```http
-POST /api/login
-```
-
-Copy the returned personal access token and use it as the Bearer token in Swagger UI.
-
-### Generate the OpenAPI Specification
-
-The OpenAPI JSON is generated from PHP attributes:
-
-```bash
-php artisan l5-swagger:generate
-```
-
-The generated specification is written to:
-
-```text
-storage/api-docs/api-docs.json
-```
-
-This file is intentionally excluded from version control because it is a generated artifact. The PHP OpenAPI definitions under `app/OpenApi` are the source of truth.
-
-The automated test suite also regenerates and validates the specification to detect missing paths, schemas, authentication configuration, and critical response codes.
+Unauthorized operations return `403 Forbidden`.
 
 ## API Endpoints
 
-Except for `/api/login`, the endpoints below require Sanctum authentication. Individual operations are also subject to the role-based authorization rules above.
+Except for login, business endpoints require authentication. Individual operations are also subject to role policies.
 
 ### Authentication
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/login` | Authenticate and create an API token |
+| POST | `/api/login` | Authenticate and issue an access token |
 | GET | `/api/user` | Return the authenticated user |
-| POST | `/api/logout` | Revoke the current API token |
+| POST | `/api/logout` | Revoke the current access token |
 
 ### Customers
 
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/customers` | List customers |
-| POST | `/api/customers` | Create customer |
-| GET | `/api/customers/{id}` | Show customer |
-| PUT/PATCH | `/api/customers/{id}` | Update customer |
-| DELETE | `/api/customers/{id}` | Delete customer |
+| POST | `/api/customers` | Create a customer |
+| GET | `/api/customers/{id}` | Show a customer |
+| PUT/PATCH | `/api/customers/{id}` | Update a customer |
+| DELETE | `/api/customers/{id}` | Delete a customer |
 
 ### Categories
 
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/categories` | List categories |
-| POST | `/api/categories` | Create category |
-| GET | `/api/categories/{id}` | Show category |
-| PUT/PATCH | `/api/categories/{id}` | Update category |
-| DELETE | `/api/categories/{id}` | Delete category |
+| POST | `/api/categories` | Create a category |
+| GET | `/api/categories/{id}` | Show a category |
+| PUT/PATCH | `/api/categories/{id}` | Update a category |
+| DELETE | `/api/categories/{id}` | Delete a category |
 
 ### Products
 
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/products` | List products |
-| POST | `/api/products` | Create product |
-| GET | `/api/products/{id}` | Show product |
-| PUT/PATCH | `/api/products/{id}` | Update product |
-| DELETE | `/api/products/{id}` | Delete product |
+| POST | `/api/products` | Create a product |
+| GET | `/api/products/{id}` | Show a product |
+| PUT/PATCH | `/api/products/{id}` | Update a product |
+| DELETE | `/api/products/{id}` | Delete a product |
 
 ### Orders
 
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/orders` | List orders |
-| POST | `/api/orders` | Create order |
-| GET | `/api/orders/{id}` | Show order |
+| POST | `/api/orders` | Create an order |
+| GET | `/api/orders/{id}` | Show an order |
 | PUT/PATCH | `/api/orders/{id}` | Update order status |
-| DELETE | `/api/orders/{id}` | Delete pending order |
+| DELETE | `/api/orders/{id}` | Delete a pending order |
 
-## Creating an Order
+## Order Example
 
-Authentication is required. Both `admin` and `operator` users can create orders.
-
-Example request:
+Both `admin` and `operator` users can create orders.
 
 ```json
 {
@@ -383,359 +307,173 @@ Example request:
 }
 ```
 
-Example response:
+The API calculates the total from server-side product prices and reduces inventory only when the complete operation succeeds.
 
-```json
-{
-  "id": 1,
-  "customer_id": 1,
-  "status": "pending",
-  "total": "25.50",
-  "customer": {
-    "id": 1,
-    "name": "Example Customer",
-    "email": "customer@example.com",
-    "phone": null
-  },
-  "items": [
-    {
-      "id": 1,
-      "product_id": 1,
-      "quantity": 3,
-      "unit_price": "8.50",
-      "subtotal": "25.50",
-      "product": {
-        "id": 1,
-        "name": "Orange Juice",
-        "price": "8.50",
-        "stock": 17,
-        "active": true
-      }
-    }
-  ]
-}
-```
+## OpenAPI / Swagger
 
-## Validation and API Resources
+The API contract is documented with OpenAPI 3 using L5-Swagger and swagger-php attributes.
 
-Request validation is organized through dedicated Laravel Form Request classes.
+The specification covers:
 
-The API uses resources to provide consistent response transformation for:
+- authentication and Sanctum Bearer security;
+- customers, categories, products, and orders;
+- request and response schemas;
+- pagination;
+- role-sensitive operations;
+- common `401`, `403`, `404`, `409`, and `422` responses;
+- order and inventory business rules.
 
-- customers
-- categories
-- products
-- orders
-- order items
-
-This keeps validation and presentation concerns outside the controllers and makes the HTTP layer easier to maintain and test.
-
-## Docker Environment
-
-The project includes a Docker-based development environment for running the API without installing the full PHP application stack directly on the host machine.
-
-The container uses:
-
-- PHP 8.4 CLI
-- Composer 2
-- SQLite
-- a persistent Docker volume for application storage and the SQLite database
-- automatic Laravel environment initialization for the container
-- automatic database migrations during container startup
-- automatic OpenAPI specification generation during container startup
-- a health check using Laravel's `/up` endpoint
-
-### Start the Application with Docker
-
-Build the image and start the container:
-
-```bash
-docker compose up -d --build
-```
-
-Check the container status:
-
-```bash
-docker compose ps
-```
-
-When the container reports `healthy`, the API is available at:
-
-```text
-http://127.0.0.1:8000
-```
-
-Swagger UI is available at:
-
-```text
-http://127.0.0.1:8000/api/documentation
-```
-
-### Run the Test Suite in Docker
-
-```bash
-docker compose exec app php artisan test
-```
-
-The same automated test suite used during local development and CI can be executed inside the container.
-
-### Stop the Docker Environment
-
-```bash
-docker compose down
-```
-
-The command above preserves the named Docker volume, so the container's SQLite database and generated development application key remain available when the environment is started again.
-
-To intentionally remove the persisted Docker data as well:
-
-```bash
-docker compose down -v
-```
-
-## Installation
-
-Clone the repository:
-
-```bash
-git clone https://github.com/iuriabreugarcia/order-management-api.git
-cd order-management-api
-```
-
-Install PHP dependencies:
-
-```bash
-composer install
-```
-
-Create the environment file:
-
-```bash
-cp .env.example .env
-```
-
-Generate the application key:
-
-```bash
-php artisan key:generate
-```
-
-Create and populate the database:
-
-```bash
-php artisan migrate:fresh --seed
-```
-
-Generate the OpenAPI specification:
+Generate the specification:
 
 ```bash
 php artisan l5-swagger:generate
 ```
 
-Start the development server:
-
-```bash
-php artisan serve
-```
-
-The API will be available by default at:
-
-```text
-http://127.0.0.1:8000/api
-```
-
-Swagger UI will be available at:
+Swagger UI:
 
 ```text
 http://127.0.0.1:8000/api/documentation
 ```
 
-## Demo Data
+The generated JSON under `storage/api-docs` is intentionally excluded from version control. PHP definitions under `app/OpenApi` are the source of truth.
 
-The project includes factories and a demo database seeder.
-
-Running:
-
-```bash
-php artisan migrate:fresh --seed
-```
-
-creates:
-
-- 10 demo customers
-- 3 categories
-- 5 products
-
-This provides sample business data for local development and API exploration.
-
-The demo data seeder does not currently create an authentication user.
+An automated test also regenerates and validates the OpenAPI contract.
 
 ## Automated Tests
 
-Run:
+Run locally:
 
 ```bash
 php artisan test
 ```
 
-The automated test suite covers authentication, authorization, CRUD operations, validation, API response structures, inventory behavior, transactional order processing, and the generated OpenAPI contract.
+Current suite:
+
+```text
+45 tests
+374 assertions
+```
 
 Coverage includes:
 
-- login with valid credentials
-- rejection of invalid credentials
-- protection of authenticated endpoints
-- authenticated access using Sanctum
-- token revocation during logout
-- role-based access control for `admin` and `operator`
-- operator restrictions on master-data management and order deletion
-- administrator access to protected management operations
-- customer creation, listing, retrieval, update, and deletion
-- customer email uniqueness validation
-- category creation, listing, retrieval, update, and deletion
-- prevention of category deletion when products exist
-- category name uniqueness validation
-- product creation, listing, retrieval, update, and deletion
-- product category validation
-- product price and stock validation
-- successful order creation
-- order listing and retrieval
-- order status updates
-- API Resource response structures
-- automatic inventory reduction
-- inactive product rejection
-- insufficient stock rejection
-- transaction rollback behavior
-- stock restoration when a pending order is deleted
-- protection against deleting non-pending orders
-- OpenAPI specification generation
-- required OpenAPI paths and operations
-- Sanctum Bearer security scheme
-- required OpenAPI schemas
-- critical `422` and `409` response documentation
-- Swagger UI route availability
-
-Current test suite:
-
-```text
-41 tests
-351 assertions
-```
+- authentication and invalid credentials;
+- protected route access;
+- current-token logout behavior;
+- admin/operator authorization;
+- operator protection against pending-order deletion;
+- customer, category, and product CRUD;
+- validation and resource response structures;
+- order creation and total calculation;
+- inventory reduction;
+- insufficient stock;
+- inactive products;
+- transaction rollback after a later item fails;
+- cumulative stock handling for duplicate product lines;
+- pending-order stock restoration;
+- non-pending order deletion protection;
+- OpenAPI generation and contract requirements.
 
 ## Continuous Integration
 
-The project uses GitHub Actions to automatically run the test suite on pushes and pull requests to the `main` branch.
+GitHub Actions automatically runs the test suite on pushes and pull requests to `main`.
 
-The CI workflow:
+The workflow validates:
 
-1. Checks out the repository.
-2. Configures PHP 8.4.
-3. Installs Composer dependencies.
-4. Creates the application environment.
-5. Generates the Laravel application key.
-6. Runs the complete automated test suite.
+1. repository checkout;
+2. PHP environment;
+3. Composer dependencies;
+4. Laravel environment setup;
+5. application key generation;
+6. the complete automated test suite.
 
-Because the OpenAPI contract test runs as part of the PHPUnit suite, CI also verifies that the Swagger/OpenAPI specification can still be generated successfully.
+Because OpenAPI validation is part of the PHPUnit suite, CI also checks that the API contract can still be generated successfully.
 
-The status badge at the top of this README reflects the current CI result.
+## Local Installation
+
+If you prefer to run the application without Docker:
+
+```bash
+git clone https://github.com/iuriabreugarcia/order-management-api.git
+cd order-management-api
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate:fresh --seed
+php artisan l5-swagger:generate
+php artisan serve
+```
+
+The API will be available at:
+
+```text
+http://127.0.0.1:8000/api
+```
+
+Swagger UI:
+
+```text
+http://127.0.0.1:8000/api/documentation
+```
+
+### Demo Data
+
+`php artisan migrate:fresh --seed` creates sample business data:
+
+- 10 customers
+- 3 categories
+- 5 products
+
+The demo seeder intentionally does not create an authentication user. Create a local user before testing authenticated endpoints.
 
 ## Project Structure
 
 ```text
 app/
 |-- Http/
-|   |-- Controllers/
-|   |   `-- Api/
-|   |       |-- AuthController.php
-|   |       |-- CategoryController.php
-|   |       |-- CustomerController.php
-|   |       |-- OrderController.php
-|   |       `-- ProductController.php
+|   |-- Controllers/Api/
 |   |-- Requests/
 |   `-- Resources/
 |-- Models/
 |-- OpenApi/
-|   |-- OpenApiSpec.php
 |   |-- Paths/
-|   |   |-- AuthPaths.php
-|   |   |-- CategoryPaths.php
-|   |   |-- CustomerPaths.php
-|   |   |-- OrderPaths.php
-|   |   `-- ProductPaths.php
 |   `-- Schemas/
-|       |-- AuthSchemas.php
-|       |-- CategorySchemas.php
-|       |-- CommonSchemas.php
-|       |-- CustomerSchemas.php
-|       |-- OrderSchemas.php
-|       `-- ProductSchemas.php
-|-- Policies/
-|   |-- CategoryPolicy.php
-|   |-- CustomerPolicy.php
-|   |-- OrderPolicy.php
-|   `-- ProductPolicy.php
+`-- Policies/
 config/
-`-- l5-swagger.php
 database/
-|-- factories/
-|-- migrations/
-`-- seeders/
 routes/
-`-- api.php
 tests/
 |-- Feature/
-|   |-- AuthApiTest.php
-|   |-- AuthorizationApiTest.php
-|   |-- CategoryApiTest.php
-|   |-- CustomerApiTest.php
-|   |-- OpenApiDocumentationTest.php
-|   |-- OrderApiTest.php
-|   `-- ProductApiTest.php
 `-- Unit/
+docker/
+.github/workflows/
 .dockerignore
 Dockerfile
 docker-compose.yml
-docker/
-`-- entrypoint.sh
-.github/
-`-- workflows/
-    `-- tests.yml
 ```
 
-## Engineering Decisions
+## What This Project Demonstrates
 
-This project intentionally goes beyond a basic CRUD implementation.
+This project is intentionally designed as a backend engineering portfolio piece rather than a minimal CRUD example.
 
-Some of the technical decisions include:
+It demonstrates practical experience with:
 
-- Laravel Sanctum personal access tokens for API authentication
-- middleware protection for business endpoints
-- token revocation during logout
-- role-based access control for `admin` and `operator`
-- operator restrictions on master-data management and order deletion
-- administrator access to protected management operations
-- dedicated Form Request classes for validation
-- API Resources for response transformation
-- OpenAPI definitions isolated from application controllers
-- PHP attributes as the source of truth for API documentation
-- generated OpenAPI JSON excluded from version control
-- automated OpenAPI contract validation
-- database transactions to preserve consistency
-- `lockForUpdate()` during inventory processing
-- historical price storage in order items
-- foreign-key constraints
-- model relationships through Eloquent
-- controlled order lifecycle
-- inventory restoration rules
-- automated feature tests for CRUD operations and business rules
-- response structure validation
-- continuous integration with GitHub Actions
-- Docker-based reproducible local development environment
-- persistent SQLite storage through a named Docker volume
+- REST API design;
+- authentication and authorization;
+- domain and business-rule modeling;
+- transactional consistency;
+- inventory concurrency concerns;
+- database relationships and constraints;
+- validation and response transformation;
+- API contract documentation;
+- automated feature and edge-case testing;
+- continuous integration;
+- containerized development environments.
 
-These decisions are intended to demonstrate backend development focused not only on endpoints, but also on authentication, authorization, API contract documentation, separation of concerns, data integrity, concurrency, business rules, containerization, and automated quality assurance.
+## Project Status
 
-## Roadmap
+**Complete.**
+
+The planned portfolio roadmap has been implemented:
 
 - [x] Token-based API authentication
 - [x] Form Request validation
