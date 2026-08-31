@@ -300,6 +300,111 @@ class OrderApiTest extends TestCase
         ]);
     }
 
+    public function test_order_creation_rolls_back_when_later_item_has_insufficient_stock(): void
+    {
+        $customer = Customer::create([
+            'name' => 'Test Customer',
+            'email' => 'customer@example.com',
+        ]);
+
+        $category = Category::create([
+            'name' => 'Beverages',
+        ]);
+
+        $availableProduct = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Orange Juice',
+            'price' => 8.50,
+            'stock' => 10,
+            'active' => true,
+        ]);
+
+        $insufficientProduct = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Apple Juice',
+            'price' => 7.50,
+            'stock' => 1,
+            'active' => true,
+        ]);
+
+        $response = $this->postJson('/api/orders', [
+            'customer_id' => $customer->id,
+            'items' => [
+                [
+                    'product_id' => $availableProduct->id,
+                    'quantity' => 2,
+                ],
+                [
+                    'product_id' => $insufficientProduct->id,
+                    'quantity' => 2,
+                ],
+            ],
+        ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('items');
+
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertDatabaseCount('order_items', 0);
+
+        $this->assertDatabaseHas('products', [
+            'id' => $availableProduct->id,
+            'stock' => 10,
+        ]);
+
+        $this->assertDatabaseHas('products', [
+            'id' => $insufficientProduct->id,
+            'stock' => 1,
+        ]);
+    }
+
+    public function test_duplicate_product_lines_respect_cumulative_stock_and_roll_back(): void
+    {
+        $customer = Customer::create([
+            'name' => 'Test Customer',
+            'email' => 'customer@example.com',
+        ]);
+
+        $category = Category::create([
+            'name' => 'Beverages',
+        ]);
+
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Grape Juice',
+            'price' => 9.00,
+            'stock' => 5,
+            'active' => true,
+        ]);
+
+        $response = $this->postJson('/api/orders', [
+            'customer_id' => $customer->id,
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 3,
+                ],
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 3,
+                ],
+            ],
+        ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('items');
+
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertDatabaseCount('order_items', 0);
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'stock' => 5,
+        ]);
+    }
+
     public function test_inactive_product_cannot_be_ordered(): void
     {
         $customer = Customer::create([

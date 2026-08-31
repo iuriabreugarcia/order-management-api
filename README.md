@@ -746,7 +746,7 @@ These decisions are intended to demonstrate backend development focused not only
 - [x] Authorization policies and roles
 - [x] OpenAPI / Swagger documentation
 - [x] Docker environment
-- [ ] Additional edge-case and authorization tests
+- [x] Additional edge-case and authorization tests
 
 ## Author
 

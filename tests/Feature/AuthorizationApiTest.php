@@ -124,6 +124,50 @@ class AuthorizationApiTest extends TestCase
         ]);
     }
 
+    public function test_operator_cannot_delete_pending_order_or_restore_stock(): void
+    {
+        Sanctum::actingAs(User::factory()->operator()->create());
+
+        $customer = Customer::factory()->create();
+        $category = Category::factory()->create();
+        $product = Product::factory()->create([
+            'category_id' => $category->id,
+            'price' => 10,
+            'stock' => 10,
+            'active' => true,
+        ]);
+
+        $orderResponse = $this->postJson('/api/orders', [
+            'customer_id' => $customer->id,
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 2,
+                ],
+            ],
+        ])->assertCreated();
+
+        $orderId = $orderResponse->json('id');
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'stock' => 8,
+        ]);
+
+        $this->deleteJson("/api/orders/{$orderId}")
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $orderId,
+            'status' => 'pending',
+        ]);
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'stock' => 8,
+        ]);
+    }
+
     public function test_admin_can_manage_master_data_and_delete_pending_orders(): void
     {
         Sanctum::actingAs(User::factory()->admin()->create());

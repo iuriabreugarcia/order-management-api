@@ -89,4 +89,32 @@ class AuthApiTest extends TestCase
 
         $this->assertDatabaseCount('personal_access_tokens', 0);
     }
+
+    public function test_logout_revokes_only_current_access_token(): void
+    {
+        $user = User::factory()->create();
+
+        $firstToken = $user->createToken('first-token')->plainTextToken;
+        $secondToken = $user->createToken('second-token')->plainTextToken;
+
+        $this->assertDatabaseCount('personal_access_tokens', 2);
+
+        $this->withToken($firstToken)
+            ->postJson('/api/logout')
+            ->assertOk();
+
+        $this->assertDatabaseCount('personal_access_tokens', 1);
+
+        $this->app['auth']->forgetGuards();
+
+        $this->withToken($firstToken)
+            ->getJson('/api/orders')
+            ->assertUnauthorized();
+
+        $this->app['auth']->forgetGuards();
+
+        $this->withToken($secondToken)
+            ->getJson('/api/orders')
+            ->assertOk();
+    }
 }
