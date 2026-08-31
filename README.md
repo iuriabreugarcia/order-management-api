@@ -3,8 +3,7 @@
 [![Tests](https://github.com/iuriabreugarcia/order-management-api/actions/workflows/tests.yml/badge.svg)](https://github.com/iuriabreugarcia/order-management-api/actions/workflows/tests.yml)
 
 RESTful API for order management and inventory control, built with Laravel and PHP.
-
-This project demonstrates the implementation of a transactional backend with token-based authentication, role-based authorization, structured validation, standardized API responses, inventory control, order processing, database consistency, and automated feature tests.
+This project demonstrates the implementation of a transactional backend with token-based authentication, role-based authorization, structured validation, standardized API responses, inventory control, order processing, database consistency, OpenAPI documentation, and automated feature tests.
 
 ## Features
 
@@ -29,6 +28,10 @@ This project demonstrates the implementation of a transactional backend with tok
 - Form Request validation
 - API Resources for response transformation
 - Eloquent relationships
+- OpenAPI 3 documentation
+- Interactive Swagger UI
+- Bearer/Sanctum authentication documented in Swagger
+- OpenAPI contract test coverage
 - Demo database seeding
 - Automated feature and authorization tests
 - Continuous Integration with GitHub Actions
@@ -38,6 +41,10 @@ This project demonstrates the implementation of a transactional backend with tok
 - PHP 8.4
 - Laravel 13
 - Laravel Sanctum
+- L5-Swagger 11
+- swagger-php 6
+- Swagger UI 5
+- OpenAPI 3.0
 - Eloquent ORM
 - SQLite
 - PHPUnit
@@ -217,7 +224,6 @@ POST /api/logout
 
 The current personal access token is revoked during logout.
 
-
 ## Authorization and Roles
 
 Authorization is implemented with Laravel Policies. The application currently supports two roles:
@@ -241,6 +247,68 @@ Authorization is implemented with Laravel Policies. The application currently su
 | Delete pending orders | Yes | No |
 
 Unauthorized operations return an HTTP `403 Forbidden` response.
+
+## OpenAPI / Swagger Documentation
+
+The API is documented with OpenAPI 3 using L5-Swagger and swagger-php PHP attributes.
+
+The specification covers:
+
+- Sanctum Bearer authentication
+- authentication endpoints
+- customers
+- categories
+- products
+- orders
+- request schemas
+- response schemas
+- pagination
+- role-sensitive operations
+- HTTP `401`, `403`, `404`, `409`, and `422` responses
+- example request and response payloads
+- order and inventory business rules
+
+### Swagger UI
+
+Start the application:
+
+```bash
+php artisan serve
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8000/api/documentation
+```
+
+Swagger UI provides an interactive view of the API contract and an **Authorize** action for Sanctum Bearer tokens.
+
+Authenticate through:
+
+```http
+POST /api/login
+```
+
+Copy the returned personal access token and use it as the Bearer token in Swagger UI.
+
+### Generate the OpenAPI Specification
+
+The OpenAPI JSON is generated from PHP attributes:
+
+```bash
+php artisan l5-swagger:generate
+```
+
+The generated specification is written to:
+
+```text
+storage/api-docs/api-docs.json
+```
+
+This file is intentionally excluded from version control because it is a generated artifact. The PHP OpenAPI definitions under `app/OpenApi` are the source of truth.
+
+The automated test suite also regenerates and validates the specification to detect missing paths, schemas, authentication configuration, and critical response codes.
 
 ## API Endpoints
 
@@ -392,6 +460,12 @@ Create and populate the database:
 php artisan migrate:fresh --seed
 ```
 
+Generate the OpenAPI specification:
+
+```bash
+php artisan l5-swagger:generate
+```
+
 Start the development server:
 
 ```bash
@@ -402,6 +476,12 @@ The API will be available by default at:
 
 ```text
 http://127.0.0.1:8000/api
+```
+
+Swagger UI will be available at:
+
+```text
+http://127.0.0.1:8000/api/documentation
 ```
 
 ## Demo Data
@@ -432,7 +512,7 @@ Run:
 php artisan test
 ```
 
-The automated test suite covers authentication, authorization, CRUD operations, validation, API response structures, inventory behavior, and transactional order processing.
+The automated test suite covers authentication, authorization, CRUD operations, validation, API response structures, inventory behavior, transactional order processing, and the generated OpenAPI contract.
 
 Coverage includes:
 
@@ -462,12 +542,18 @@ Coverage includes:
 - transaction rollback behavior
 - stock restoration when a pending order is deleted
 - protection against deleting non-pending orders
+- OpenAPI specification generation
+- required OpenAPI paths and operations
+- Sanctum Bearer security scheme
+- required OpenAPI schemas
+- critical `422` and `409` response documentation
+- Swagger UI route availability
 
 Current test suite:
 
 ```text
-40 tests
-282 assertions
+41 tests
+351 assertions
 ```
 
 ## Continuous Integration
@@ -482,6 +568,8 @@ The CI workflow:
 4. Creates the application environment.
 5. Generates the Laravel application key.
 6. Runs the complete automated test suite.
+
+Because the OpenAPI contract test runs as part of the PHPUnit suite, CI also verifies that the Swagger/OpenAPI specification can still be generated successfully.
 
 The status badge at the top of this README reflects the current CI result.
 
@@ -500,11 +588,28 @@ app/
 |   |-- Requests/
 |   `-- Resources/
 |-- Models/
+|-- OpenApi/
+|   |-- OpenApiSpec.php
+|   |-- Paths/
+|   |   |-- AuthPaths.php
+|   |   |-- CategoryPaths.php
+|   |   |-- CustomerPaths.php
+|   |   |-- OrderPaths.php
+|   |   `-- ProductPaths.php
+|   `-- Schemas/
+|       |-- AuthSchemas.php
+|       |-- CategorySchemas.php
+|       |-- CommonSchemas.php
+|       |-- CustomerSchemas.php
+|       |-- OrderSchemas.php
+|       `-- ProductSchemas.php
 |-- Policies/
 |   |-- CategoryPolicy.php
 |   |-- CustomerPolicy.php
 |   |-- OrderPolicy.php
 |   `-- ProductPolicy.php
+config/
+`-- l5-swagger.php
 database/
 |-- factories/
 |-- migrations/
@@ -517,6 +622,7 @@ tests/
 |   |-- AuthorizationApiTest.php
 |   |-- CategoryApiTest.php
 |   |-- CustomerApiTest.php
+|   |-- OpenApiDocumentationTest.php
 |   |-- OrderApiTest.php
 |   `-- ProductApiTest.php
 `-- Unit/
@@ -539,6 +645,10 @@ Some of the technical decisions include:
 - administrator access to protected management operations
 - dedicated Form Request classes for validation
 - API Resources for response transformation
+- OpenAPI definitions isolated from application controllers
+- PHP attributes as the source of truth for API documentation
+- generated OpenAPI JSON excluded from version control
+- automated OpenAPI contract validation
 - database transactions to preserve consistency
 - `lockForUpdate()` during inventory processing
 - historical price storage in order items
@@ -550,7 +660,7 @@ Some of the technical decisions include:
 - response structure validation
 - continuous integration with GitHub Actions
 
-These decisions are intended to demonstrate backend development focused not only on endpoints, but also on authentication, authorization, separation of concerns, data integrity, concurrency, business rules, and automated quality assurance.
+These decisions are intended to demonstrate backend development focused not only on endpoints, but also on authentication, authorization, API contract documentation, separation of concerns, data integrity, concurrency, business rules, and automated quality assurance.
 
 ## Roadmap
 
@@ -561,7 +671,7 @@ These decisions are intended to demonstrate backend development focused not only
 - [x] Order and inventory business-rule tests
 - [x] Continuous Integration with GitHub Actions
 - [x] Authorization policies and roles
-- [ ] OpenAPI / Swagger documentation
+- [x] OpenAPI / Swagger documentation
 - [ ] Docker environment
 - [ ] Additional edge-case and authorization tests
 
