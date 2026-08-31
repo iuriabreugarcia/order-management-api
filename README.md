@@ -35,6 +35,7 @@ This project demonstrates the implementation of a transactional backend with tok
 - Demo database seeding
 - Automated feature and authorization tests
 - Continuous Integration with GitHub Actions
+- Docker-based development environment
 
 ## Tech Stack
 
@@ -49,6 +50,8 @@ This project demonstrates the implementation of a transactional backend with tok
 - SQLite
 - PHPUnit
 - Composer
+- Docker
+- Docker Compose
 - GitHub Actions
 - REST API
 
@@ -427,6 +430,69 @@ The API uses resources to provide consistent response transformation for:
 
 This keeps validation and presentation concerns outside the controllers and makes the HTTP layer easier to maintain and test.
 
+## Docker Environment
+
+The project includes a Docker-based development environment for running the API without installing the full PHP application stack directly on the host machine.
+
+The container uses:
+
+- PHP 8.4 CLI
+- Composer 2
+- SQLite
+- a persistent Docker volume for application storage and the SQLite database
+- automatic Laravel environment initialization for the container
+- automatic database migrations during container startup
+- automatic OpenAPI specification generation during container startup
+- a health check using Laravel's `/up` endpoint
+
+### Start the Application with Docker
+
+Build the image and start the container:
+
+```bash
+docker compose up -d --build
+```
+
+Check the container status:
+
+```bash
+docker compose ps
+```
+
+When the container reports `healthy`, the API is available at:
+
+```text
+http://127.0.0.1:8000
+```
+
+Swagger UI is available at:
+
+```text
+http://127.0.0.1:8000/api/documentation
+```
+
+### Run the Test Suite in Docker
+
+```bash
+docker compose exec app php artisan test
+```
+
+The same automated test suite used during local development and CI can be executed inside the container.
+
+### Stop the Docker Environment
+
+```bash
+docker compose down
+```
+
+The command above preserves the named Docker volume, so the container's SQLite database and generated development application key remain available when the environment is started again.
+
+To intentionally remove the persisted Docker data as well:
+
+```bash
+docker compose down -v
+```
+
 ## Installation
 
 Clone the repository:
@@ -626,6 +692,11 @@ tests/
 |   |-- OrderApiTest.php
 |   `-- ProductApiTest.php
 `-- Unit/
+.dockerignore
+Dockerfile
+docker-compose.yml
+docker/
+`-- entrypoint.sh
 .github/
 `-- workflows/
     `-- tests.yml
@@ -659,8 +730,10 @@ Some of the technical decisions include:
 - automated feature tests for CRUD operations and business rules
 - response structure validation
 - continuous integration with GitHub Actions
+- Docker-based reproducible local development environment
+- persistent SQLite storage through a named Docker volume
 
-These decisions are intended to demonstrate backend development focused not only on endpoints, but also on authentication, authorization, API contract documentation, separation of concerns, data integrity, concurrency, business rules, and automated quality assurance.
+These decisions are intended to demonstrate backend development focused not only on endpoints, but also on authentication, authorization, API contract documentation, separation of concerns, data integrity, concurrency, business rules, containerization, and automated quality assurance.
 
 ## Roadmap
 
@@ -672,7 +745,7 @@ These decisions are intended to demonstrate backend development focused not only
 - [x] Continuous Integration with GitHub Actions
 - [x] Authorization policies and roles
 - [x] OpenAPI / Swagger documentation
-- [ ] Docker environment
+- [x] Docker environment
 - [ ] Additional edge-case and authorization tests
 
 ## Author

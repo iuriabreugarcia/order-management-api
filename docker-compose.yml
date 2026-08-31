@@ -1,0 +1,41 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: order-management-api:local
+    init: true
+    ports:
+      - "8000:8000"
+    environment:
+      APP_NAME: "Order Management API"
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: "http://localhost:8000"
+      LOG_CHANNEL: stderr
+      LOG_LEVEL: debug
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /var/www/html/storage/database.sqlite
+      SESSION_DRIVER: file
+      CACHE_STORE: file
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: log
+    volumes:
+      - app_storage:/var/www/html/storage
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "--fail",
+          "--silent",
+          "--show-error",
+          "http://127.0.0.1:8000/up"
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+volumes:
+  app_storage:
